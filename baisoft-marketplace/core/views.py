@@ -63,9 +63,7 @@ class InternalProductsListCreateView(generics.ListCreateAPIView):
     ordering = ['-created_at']
     
     def get_queryset(self):
-        """Return products in the current user's business."""
-        if not self.request.user.business:
-            return Product.objects.none()
+        """Return only products belonging to the current user's business."""
         return Product.objects.filter(business=self.request.user.business)
     
     def perform_create(self, serializer):

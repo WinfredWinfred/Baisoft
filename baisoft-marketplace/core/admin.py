@@ -1,12 +1,28 @@
 from django.contrib import admin
+from django.contrib.admin import AdminSite
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.html import format_html
-from django.db.models import Count
+from django import forms
+from django.db.models import Q, Count
+
+# Custom AdminSite to handle unload event warning
+class CustomAdminSite(AdminSite):
+    def each_context(self, request):
+        context = super().each_context(request)
+        # Disable the unload event handler that causes the warning
+        context['has_permission'] = False
+        return context
+
+# Use our custom admin site
+admin_site = CustomAdminSite()
+
+# Register your models with the custom admin site
 from .models import User, Product, Business
 
-
-@admin.register(Business)
+@admin.register(Business, site=admin_site)
 class BusinessAdmin(admin.ModelAdmin):
+    class Media:
+        js = ('admin/js/vendor/jquery/jquery.js', 'admin/js/jquery.init.js')  # Ensure jQuery is loaded first
     """Admin for Business model with enhanced functionality."""
     list_display = ('name', 'user_count_display', 'product_count', 'active_editors', 'created_at_display')
     list_filter = ('created_at', 'users__role')
@@ -176,6 +192,8 @@ class UserAdmin(BaseUserAdmin):
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
+    # Use custom change form template
+    change_form_template = 'admin/core/product/change_form.html'
     """Admin for Product model with enhanced functionality."""
     list_display = ('name_display', 'business_display', 'price_display', 'status_display', 'created_by_display', 'created_at_display', 'approval_status')
     list_filter = ('status', 'business', 'created_by__role', 'created_at')
@@ -273,7 +291,7 @@ class ProductAdmin(admin.ModelAdmin):
             info += '<span style="color: #0275d8;">Waiting for admin/approver to review</span>'
         else:
             info += '<span style="color: #28a745;">Product is public and visible to all users</span>'
-        return format_html(f'<div style="padding: 8px; background-color: #f9f9f9; border-left: 3px solid #ddd; border-radius: 2px;">{info}</div>')
+        return format_html('<div style="padding: 8px; background-color: #f9f9f9; border-left: 3px solid #ddd; border-radius: 2px;">%s</div>', info)
     approval_info.short_description = 'Approval Info'
     
     def approve_products(self, request, queryset):
@@ -295,7 +313,19 @@ class ProductAdmin(admin.ModelAdmin):
     mark_as_pending.short_description = 'Mark selected as pending approval'
     
     def save_model(self, request, obj, form, change):
-        """Set created_by to current user on creation."""
-        if not change:
+        """Set created_by to current user on creation and ensure business is set."""
+        if not change:  # Only set created_by and business on creation
             obj.created_by = request.user
+            if not obj.business and hasattr(request.user, 'business'):
+                obj.business = request.user.business
         super().save_model(request, obj, form, change)
+        
+    def get_form(self, request, obj=None, **kwargs):
+        """Customize the form to handle the business field properly."""
+        form = super().get_form(request, obj, **kwargs)
+        # If user has a business, limit the business choices to just that business
+        if hasattr(request.user, 'business') and request.user.business:
+            form.base_fields['business'].queryset = Business.objects.filter(id=request.user.business.id)
+            if not obj:  # Only set default for new objects
+                form.base_fields['business'].initial = request.user.business
+        return form
