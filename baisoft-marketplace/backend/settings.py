@@ -11,6 +11,8 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+import os
+from decouple import config, Csv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,12 +22,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-!r_+n%%4nls3k8chy*4py$w=1%g17w78ohjd^fwlcc_)raiu95'
+SECRET_KEY = config('DJANGO_SECRET_KEY', default='django-insecure-!r_+n%%4nls3k8chy*4py$w=1%g17w78ohjd^fwlcc_)raiu95')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
 
 
 # Application definition
@@ -45,6 +47,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -119,7 +122,9 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # REST Framework Configuration
 REST_FRAMEWORK = {
@@ -147,14 +152,32 @@ REST_FRAMEWORK = {
 }
 
 # CORS Configuration
-CORS_ALLOWED_ORIGINS = [
-    'http://localhost:3000',
-    'http://localhost:8000',
-    'http://127.0.0.1:3000',
-    'http://127.0.0.1:8000',
-]
+CORS_ALLOWED_ORIGINS = config(
+    'CORS_ALLOWED_ORIGINS',
+    default='http://localhost:3000,http://localhost:8000,http://127.0.0.1:3000,http://127.0.0.1:8000',
+    cast=Csv()
+)
 
-CORS_ALLOW_ALL_ORIGINS = True  # Development only
+CORS_ALLOW_ALL_ORIGINS = config('CORS_ALLOW_ALL_ORIGINS', default=not DEBUG, cast=bool)
+
+# Custom User Model
+AUTH_USER_MODEL = 'core.User'
+
+# Security Settings for Production
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_SECURITY_POLICY = {
+        'default-src': ("'self'",),
+        'script-src': ("'self'", "'unsafe-inline'"),
+        'style-src': ("'self'", "'unsafe-inline'"),
+    }
+
 
 # Custom User Model
 AUTH_USER_MODEL = 'core.User'

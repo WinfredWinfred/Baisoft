@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: baisoft-backend
+    runtime: python
+    buildCommand: ./build.sh
+    startCommand: gunicorn backend.wsgi:application
+    envVars:
+      - key: DEBUG
+        value: false
+      - key: ALLOWED_HOSTS
+        value: .onrender.com
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        value: sqlite:///db.sqlite3
+    healthCheckPath: /api/health/
+    staticPublicPath: /static
