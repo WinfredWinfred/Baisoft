@@ -1,11 +1,10 @@
 {
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
-    "builder": "NIXPACKS",
-    "buildCommand": "cd baisoft-marketplace && pip install -r requirements.txt && python manage.py collectstatic --noinput"
+    "builder": "NIXPACKS"
   },
   "deploy": {
-    "startCommand": "cd baisoft-marketplace && python manage.py migrate && gunicorn backend.wsgi:application --bind 0.0.0.0:$PORT",
+    "startCommand": "cd baisoft-marketplace && python manage.py migrate && python -m gunicorn backend.wsgi:application --bind 0.0.0.0:$PORT",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }

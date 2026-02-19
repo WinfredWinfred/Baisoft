@@ -1,11 +1,11 @@
 [phases.setup]
-nixPkgs = ["python312", "postgresql"]
+nixPkgs = ["python312"]
 
 [phases.install]
-cmds = ["cd baisoft-marketplace && pip install -r requirements.txt"]
+cmds = ["cd baisoft-marketplace", "python -m ensurepip", "python -m pip install --upgrade pip", "python -m pip install -r requirements.txt"]
 
 [phases.build]
-cmds = ["cd baisoft-marketplace && python manage.py collectstatic --noinput"]
+cmds = ["cd baisoft-marketplace", "python manage.py collectstatic --noinput"]
 
 [start]
-cmd = "cd baisoft-marketplace && python manage.py migrate && gunicorn backend.wsgi:application --bind 0.0.0.0:$PORT"
+cmd = "cd baisoft-marketplace && python manage.py migrate && python -m gunicorn backend.wsgi:application --bind 0.0.0.0:$PORT"
