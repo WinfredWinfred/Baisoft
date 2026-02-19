@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "export": "next export"
   },
   "dependencies": {
     "@alloc/quick-lru": "^5.2.0",
@@ -16,6 +17,7 @@
     "react-dom": "^19.2.3"
   },
   "devDependencies": {
+    "@netlify/plugin-nextjs": "^5.7.4",
     "@swc/helpers": "^0.5.18",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
