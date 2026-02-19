@@ -30,8 +30,19 @@ def health_check(request):
     return JsonResponse({"status": "ok", "message": "Baisoft Marketplace API is running"})
 
 
+def seed_data(request):
+    """One-time endpoint to seed test data"""
+    from django.core.management import call_command
+    try:
+        call_command('seed_testdata')
+        return JsonResponse({"status": "success", "message": "Test data seeded successfully"})
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
+
 urlpatterns = [
     path('', health_check, name='health'),
+    path('seed/', seed_data, name='seed'),
     path('admin/', admin.site.urls),
     
     # JWT Authentication endpoints
