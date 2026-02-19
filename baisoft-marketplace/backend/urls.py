@@ -52,10 +52,21 @@ def debug_cors(request):
     })
 
 
+def debug_users(request):
+    """Debug endpoint to check if users exist"""
+    from core.models import User
+    users = User.objects.all().values('id', 'username', 'email', 'role', 'is_active')
+    return JsonResponse({
+        "total_users": User.objects.count(),
+        "users": list(users)
+    })
+
+
 urlpatterns = [
     path('', health_check, name='health'),
     path('seed/', seed_data, name='seed'),
     path('debug-cors/', debug_cors, name='debug-cors'),
+    path('debug-users/', debug_users, name='debug-users'),
     path('admin/', admin.site.urls),
     
     # JWT Authentication endpoints
