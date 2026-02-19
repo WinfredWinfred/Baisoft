@@ -158,7 +158,14 @@ CORS_ALLOWED_ORIGINS = config(
     cast=Csv()
 )
 
+# Temporarily allow all origins in production for debugging
+# TODO: Restrict this after confirming the correct Netlify URL
 CORS_ALLOW_ALL_ORIGINS = config('CORS_ALLOW_ALL_ORIGINS', default=str(DEBUG), cast=lambda v: v.strip('=').lower() in ('true', '1', 'yes'))
+
+# If CORS_ALLOWED_ORIGINS is empty or default, allow all in production
+if not DEBUG and len(CORS_ALLOWED_ORIGINS) <= 2:
+    CORS_ALLOW_ALL_ORIGINS = True
+
 CORS_ALLOW_CREDENTIALS = True
 
 # Custom User Model

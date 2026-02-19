@@ -40,9 +40,22 @@ def seed_data(request):
         return JsonResponse({"status": "error", "message": str(e)}, status=500)
 
 
+def debug_cors(request):
+    """Debug endpoint to check CORS settings"""
+    from django.conf import settings
+    return JsonResponse({
+        "CORS_ALLOWED_ORIGINS": list(settings.CORS_ALLOWED_ORIGINS) if hasattr(settings, 'CORS_ALLOWED_ORIGINS') else [],
+        "CORS_ALLOW_ALL_ORIGINS": settings.CORS_ALLOW_ALL_ORIGINS if hasattr(settings, 'CORS_ALLOW_ALL_ORIGINS') else False,
+        "CORS_ALLOW_CREDENTIALS": settings.CORS_ALLOW_CREDENTIALS if hasattr(settings, 'CORS_ALLOW_CREDENTIALS') else False,
+        "DEBUG": settings.DEBUG,
+        "ALLOWED_HOSTS": settings.ALLOWED_HOSTS,
+    })
+
+
 urlpatterns = [
     path('', health_check, name='health'),
     path('seed/', seed_data, name='seed'),
+    path('debug-cors/', debug_cors, name='debug-cors'),
     path('admin/', admin.site.urls),
     
     # JWT Authentication endpoints
