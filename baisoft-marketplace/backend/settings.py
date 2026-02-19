@@ -25,7 +25,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config('DJANGO_SECRET_KEY', default='django-insecure-!r_+n%%4nls3k8chy*4py$w=1%g17w78ohjd^fwlcc_)raiu95')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config('DEBUG', default=True, cast=bool)
+DEBUG = config('DEBUG', default='True', cast=lambda v: v.strip('=').lower() in ('true', '1', 'yes'))
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,.railway.app,.netlify.app', cast=Csv())
 
@@ -158,7 +158,7 @@ CORS_ALLOWED_ORIGINS = config(
     cast=Csv()
 )
 
-CORS_ALLOW_ALL_ORIGINS = config('CORS_ALLOW_ALL_ORIGINS', default=DEBUG, cast=bool)
+CORS_ALLOW_ALL_ORIGINS = config('CORS_ALLOW_ALL_ORIGINS', default=str(DEBUG), cast=lambda v: v.strip('=').lower() in ('true', '1', 'yes'))
 CORS_ALLOW_CREDENTIALS = True
 
 # Custom User Model
