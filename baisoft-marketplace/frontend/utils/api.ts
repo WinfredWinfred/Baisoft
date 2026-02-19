@@ -1,9 +1,11 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
 
-// Define the base URL from environment variables or use a default
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
 
-// Create a custom axios instance
+/**
+ * Axios instance configured for API requests
+ * Automatically adds JWT token and handles common errors
+ */
 const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -12,10 +14,11 @@ const api: AxiosInstance = axios.create({
   withCredentials: false,
 });
 
-// Request interceptor to add auth token
+/**
+ * Request interceptor to add authentication token to all requests
+ */
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    // Only run this in the browser
     if (typeof window !== 'undefined') {
       const token = localStorage.getItem('token');
       if (token && config.headers) {
@@ -24,33 +27,24 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// Response interceptor to handle common errors
+/**
+ * Response interceptor to handle authentication and authorization errors
+ */
 api.interceptors.response.use(
-  (response: AxiosResponse) => {
-    return response;
-  },
+  (response: AxiosResponse) => response,
   (error: AxiosError) => {
-    // Handle common errors (401, 403, 500, etc.)
     if (error.response) {
       const { status } = error.response;
       
-      // Handle 401 Unauthorized
-      if (status === 401) {
-        // Clear token and redirect to login
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('token');
-          window.location.href = '/login';
-        }
+      if (status === 401 && typeof window !== 'undefined') {
+        localStorage.removeItem('token');
+        window.location.href = '/login';
       }
       
-      // Handle 403 Forbidden
       if (status === 403) {
-        // You might want to redirect to a "not authorized" page
         console.error('Access Denied');
       }
     }
@@ -59,8 +53,10 @@ api.interceptors.response.use(
   }
 );
 
-// Helper functions for common HTTP methods
-const apiService = {
+/**
+ * Helper functions for common HTTP methods with type safety
+ */
+export const apiService = {
   get: <T>(url: string, config?: InternalAxiosRequestConfig): Promise<AxiosResponse<T>> => 
     api.get<T>(url, config),
   
@@ -77,4 +73,4 @@ const apiService = {
     api.patch<T>(url, data, config),
 };
 
-export { api as default, apiService };
+export default api;
