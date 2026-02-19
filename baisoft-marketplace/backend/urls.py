@@ -16,6 +16,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.http import JsonResponse
 from rest_framework_simplejwt.views import TokenRefreshView
 from core.serializers import CustomTokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -25,7 +26,12 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
 
+def health_check(request):
+    return JsonResponse({"status": "ok", "message": "Baisoft Marketplace API is running"})
+
+
 urlpatterns = [
+    path('', health_check, name='health'),
     path('admin/', admin.site.urls),
     
     # JWT Authentication endpoints
