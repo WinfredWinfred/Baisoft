@@ -87,7 +87,7 @@ class User(AbstractUser):
 
 
 class Product(models.Model):
-    """Product model with approval workflow."""
+    """Product model with approval workflow and audit trail."""
     
     STATUS_CHOICES = [
         ('draft', 'Draft'),
@@ -115,6 +115,12 @@ class Product(models.Model):
         decimal_places=2,
         help_text='Product price'
     )
+    image = models.ImageField(
+        upload_to='products/',
+        null=True,
+        blank=True,
+        help_text='Product image'
+    )
     status = models.CharField(
         max_length=20,
         choices=STATUS_CHOICES,
@@ -126,6 +132,36 @@ class Product(models.Model):
         on_delete=models.PROTECT,
         related_name='products',
         help_text='User who created the product'
+    )
+    approved_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name='approved_products',
+        null=True,
+        blank=True,
+        help_text='User who approved the product'
+    )
+    approved_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='Timestamp when product was approved'
+    )
+    is_deleted = models.BooleanField(
+        default=False,
+        help_text='Soft delete flag'
+    )
+    deleted_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='Timestamp when product was deleted'
+    )
+    deleted_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        related_name='deleted_products',
+        null=True,
+        blank=True,
+        help_text='User who deleted the product'
     )
     created_at = models.DateTimeField(
         auto_now_add=True,
@@ -142,7 +178,51 @@ class Product(models.Model):
             models.Index(fields=['status']),
             models.Index(fields=['created_by']),
             models.Index(fields=['business']),
+            models.Index(fields=['is_deleted']),
         ]
     
     def __str__(self):
         return f"{self.name} ({self.get_status_display()})"
+    
+    def can_transition_to(self, new_status, user):
+        """
+        Validate status transitions based on current status and user role.
+        
+        Rules:
+        - Draft can transition to pending_approval or approved
+        - Pending_approval can transition to approved or back to draft
+        - Approved can only be changed back by admin
+        - Only admin/approver can set status to approved
+        """
+        # Admin can do anything
+        if user.role == 'admin':
+            return True
+        
+        # Can't unapprove a product unless admin
+        if self.status == 'approved' and new_status != 'approved':
+            return False
+        
+        # Only admin/approver can approve
+        if new_status == 'approved' and user.role not in ['admin', 'approver']:
+            return False
+        
+        # Editor can move between draft and pending_approval
+        if user.role == 'editor':
+            return new_status in ['draft', 'pending_approval']
+        
+        return True
+    
+    def soft_delete(self, user):
+        """Soft delete the product."""
+        from django.utils import timezone
+        self.is_deleted = True
+        self.deleted_at = timezone.now()
+        self.deleted_by = user
+        self.save()
+    
+    def restore(self):
+        """Restore a soft-deleted product."""
+        self.is_deleted = False
+        self.deleted_at = None
+        self.deleted_by = None
+        self.save()

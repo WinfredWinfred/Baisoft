@@ -94,10 +94,13 @@ class UserManagementSerializer(serializers.ModelSerializer):
 
 
 class ProductSerializer(serializers.ModelSerializer):
-    """Serializer for Product model with read-only created_by."""
+    """Serializer for Product model with read-only created_by and audit fields."""
     
     created_by = UserSerializer(read_only=True)
     business = BusinessSerializer(read_only=True)
+    approved_by = UserSerializer(read_only=True)
+    deleted_by = UserSerializer(read_only=True)
+    image_url = serializers.SerializerMethodField()
     
     class Meta:
         model = Product
@@ -106,10 +109,37 @@ class ProductSerializer(serializers.ModelSerializer):
             'name',
             'description',
             'price',
+            'image',
+            'image_url',
             'status',
             'business',
             'created_by',
+            'approved_by',
+            'approved_at',
+            'is_deleted',
+            'deleted_by',
+            'deleted_at',
             'created_at',
             'updated_at'
         ]
-        read_only_fields = ['id', 'created_by', 'business', 'created_at', 'updated_at']
+        read_only_fields = [
+            'id', 
+            'created_by', 
+            'business', 
+            'approved_by', 
+            'approved_at',
+            'is_deleted',
+            'deleted_by',
+            'deleted_at',
+            'created_at', 
+            'updated_at'
+        ]
+    
+    def get_image_url(self, obj):
+        """Get full URL for product image."""
+        if obj.image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+            return obj.image.url
+        return None

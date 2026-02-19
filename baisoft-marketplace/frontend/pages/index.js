@@ -1,29 +1,31 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { apiService } from '../utils/api';
+import { isLoggedIn } from '../utils/auth';
+import ProductCard from '../components/ProductCard';
 
 export default function Marketplace() {
   const [products, setProducts] = useState([]);
-  const [filteredProducts, setFilteredProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [userLoggedIn, setUserLoggedIn] = useState(false);
 
   useEffect(() => {
+    setUserLoggedIn(isLoggedIn());
     fetchProducts();
   }, []);
 
-  useEffect(() => {
+  // Memoize filtered products for better performance
+  const filteredProducts = useMemo(() => {
     if (searchQuery.trim() === '') {
-      setFilteredProducts(products);
-    } else {
-      const query = searchQuery.toLowerCase();
-      const filtered = products.filter(product => 
-        product.name.toLowerCase().includes(query) ||
-        product.description.toLowerCase().includes(query)
-      );
-      setFilteredProducts(filtered);
+      return products;
     }
+    const query = searchQuery.toLowerCase();
+    return products.filter(product => 
+      product.name.toLowerCase().includes(query) ||
+      product.description.toLowerCase().includes(query)
+    );
   }, [searchQuery, products]);
 
   const fetchProducts = async () => {
@@ -32,12 +34,10 @@ export default function Marketplace() {
       const data = response.data.results || response.data;
       const productsArray = Array.isArray(data) ? data : [];
       setProducts(productsArray);
-      setFilteredProducts(productsArray);
     } catch (err) {
       setError('Failed to load products');
       console.error('Error fetching products:', err);
       setProducts([]);
-      setFilteredProducts([]);
     } finally {
       setLoading(false);
     }
@@ -61,19 +61,35 @@ export default function Marketplace() {
       {/* Header */}
       <div className="bg-blue-900 text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center mb-6">
-            <h1 className="text-4xl font-bold">Marketplace</h1>
-            <p className="mt-2 text-blue-200">Discover quality products from trusted businesses</p>
+          <div className="flex justify-between items-center mb-6">
+            <div className="text-center flex-1">
+              <h1 className="text-4xl font-bold">Marketplace</h1>
+              <p className="mt-2 text-blue-200">Discover quality products from trusted businesses</p>
+            </div>
+            {userLoggedIn && (
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center px-4 py-2 bg-white text-blue-900 rounded-lg hover:bg-blue-50 transition-colors font-medium text-sm"
+              >
+                <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                </svg>
+                Dashboard
+              </Link>
+            )}
           </div>
           
           {/* Search Bar */}
           <div className="max-w-2xl mx-auto">
             <div className="relative">
+              <label htmlFor="product-search" className="sr-only">Search products</label>
               <input
+                id="product-search"
                 type="text"
                 placeholder="Search products..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                aria-label="Search products by name or description"
                 className="w-full px-5 py-3 pl-12 text-gray-900 bg-white rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <svg 
@@ -81,6 +97,7 @@ export default function Marketplace() {
                 fill="none" 
                 viewBox="0 0 24 24" 
                 stroke="currentColor"
+                aria-hidden="true"
               >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
@@ -124,46 +141,7 @@ export default function Marketplace() {
         ) : (
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
             {filteredProducts.map((product) => (
-              <div 
-                key={product.id} 
-                className="group bg-white rounded-xl shadow-md hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-200"
-              >
-                <div className="p-6">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <h3 className="text-xl font-semibold text-gray-900 group-hover:text-blue-900 transition-colors">
-                        {product.name}
-                      </h3>
-                      {product.business?.name && (
-                        <p className="mt-1 text-xs text-gray-500 uppercase tracking-wide font-medium">
-                          {product.business.name}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <p className="text-sm text-gray-600 leading-relaxed mb-4 line-clamp-3">
-                    {product.description}
-                  </p>
-                  
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                    <div>
-                      <p className="text-2xl font-bold text-blue-900">
-                        ${parseFloat(product.price || 0).toFixed(2)}
-                      </p>
-                    </div>
-                    <Link
-                      href={`/products/${product.id}`}
-                      className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-900 rounded-lg hover:bg-blue-800 transition-colors"
-                    >
-                      View Details
-                      <svg className="ml-2 w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </Link>
-                  </div>
-                </div>
-              </div>
+              <ProductCard key={product.id} product={product} showBusiness={true} />
             ))}
           </div>
         )}

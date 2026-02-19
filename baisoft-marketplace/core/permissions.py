@@ -84,6 +84,28 @@ class CanApproveProduct(permissions.BasePermission):
         return request.user.role in ['admin', 'approver']
 
 
+class CanViewProducts(permissions.BasePermission):
+    """
+    Permission to allow users to view products.
+    Admin, Editor, and Approver can view all products.
+    Viewers can only view approved products (handled in separate view).
+    """
+    
+    message = "You do not have permission to view internal products."
+    
+    def has_permission(self, request, view):
+        """Check if user has permission to view products."""
+        if not request.user or not request.user.is_authenticated:
+            return False
+        
+        # Allow GET requests for admin, editor, and approver
+        if request.method in permissions.SAFE_METHODS:
+            return request.user.role in ['admin', 'editor', 'approver']
+        
+        # Only admin and editor can create/modify
+        return request.user.role in ['admin', 'editor']
+
+
 class CanManageProduct(permissions.BasePermission):
     """
     Custom permission to allow users with 'admin' or 'editor' role

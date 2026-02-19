@@ -14,6 +14,7 @@ function ApprovalsPage() {
   const fetchPendingApprovals = async () => {
     try {
       setLoading(true);
+      setError('');
       const response = await apiService.get('/products/internal/');
       const data = response.data.results || response.data;
       const productsArray = Array.isArray(data) ? data : [];
@@ -22,8 +23,12 @@ function ApprovalsPage() {
       );
       setProducts(pendingProducts);
     } catch (err) {
-      setError('Failed to load pending approvals');
       console.error('Error fetching pending approvals:', err);
+      if (err.response?.status === 403) {
+        setError('You do not have permission to view pending approvals.');
+      } else {
+        setError('Failed to load pending approvals. Please try again.');
+      }
       setProducts([]);
     } finally {
       setLoading(false);
@@ -33,6 +38,8 @@ function ApprovalsPage() {
   useEffect(() => {
     if (canApprove) {
       fetchPendingApprovals();
+    } else {
+      setLoading(false);
     }
   }, [canApprove]);
 
@@ -41,14 +48,15 @@ function ApprovalsPage() {
     
     try {
       setProcessing(prev => ({ ...prev, [productId]: 'approving' }));
+      setError('');
       
       await apiService.post(`/products/${productId}/approve/`, {});
       
       await fetchPendingApprovals();
       
     } catch (err) {
-      setError('Failed to approve product');
       console.error('Error approving product:', err);
+      setError(err.response?.data?.detail || 'Failed to approve product. Please try again.');
     } finally {
       setProcessing(prev => ({ ...prev, [productId]: false }));
     }
@@ -127,7 +135,7 @@ function ApprovalsPage() {
                           <svg className="h-5 w-5 text-gray-400 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                           </svg>
-                          Created by: <span className="font-medium text-gray-900 ml-1">{product.created_by?.username || 'Unknown'}</span>
+                          Created by: <span className="font-medium text-gray-900 ml-1">{product.created_by_username || 'Unknown'}</span>
                         </div>
                         <div className="flex items-center">
                           <svg className="h-5 w-5 text-gray-400 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

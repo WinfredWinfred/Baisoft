@@ -13,9 +13,11 @@ function NewProduct() {
     name: '',
     description: '',
     price: '',
+    status: 'draft',
   });
 
   const canCreate = user && (user.role === 'admin' || user.role === 'editor');
+  const canSetStatus = user && (user.role === 'admin' || user.role === 'editor');
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -31,13 +33,18 @@ function NewProduct() {
     setError('');
 
     try {
-      await apiService.post('/products/internal/', {
+      const response = await apiService.post('/products/internal/', {
         name: formData.name,
         description: formData.description,
         price: parseFloat(formData.price),
+        status: formData.status,
       });
 
-      router.push('/dashboard/products');
+      // Redirect with success message
+      router.push({
+        pathname: '/dashboard/products',
+        query: { created: 'true', status: formData.status }
+      });
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to create product');
       console.error('Error creating product:', err);
@@ -157,14 +164,60 @@ function NewProduct() {
                 </div>
               </div>
 
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              {canSetStatus && (
+                <div>
+                  <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-2">
+                    Product Status <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    name="status"
+                    id="status"
+                    value={formData.status}
+                    onChange={handleChange}
+                    className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900 focus:border-transparent"
+                  >
+                    <option value="draft">Draft - Save for later editing</option>
+                    <option value="pending_approval">Pending Approval - Submit for review</option>
+                    {user.role === 'admin' && (
+                      <option value="approved">Approved - Publish immediately</option>
+                    )}
+                  </select>
+                  <p className="mt-2 text-xs text-gray-500">
+                    {formData.status === 'draft' && 'Product will be saved as draft and can be edited later'}
+                    {formData.status === 'pending_approval' && 'Product will be submitted for approval by an approver'}
+                    {formData.status === 'approved' && 'Product will be immediately visible in the public marketplace'}
+                  </p>
+                </div>
+              )}
+
+              <div className={`border rounded-lg p-4 ${
+                formData.status === 'approved' ? 'bg-green-50 border-green-200' :
+                formData.status === 'pending_approval' ? 'bg-yellow-50 border-yellow-200' :
+                'bg-blue-50 border-blue-200'
+              }`}>
                 <div className="flex">
-                  <svg className="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                  <svg className={`h-5 w-5 ${
+                    formData.status === 'approved' ? 'text-green-400' :
+                    formData.status === 'pending_approval' ? 'text-yellow-400' :
+                    'text-blue-400'
+                  }`} fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                   </svg>
-                  <p className="ml-3 text-sm text-blue-700">
-                    Your product will be created with <span className="font-semibold">draft</span> status and will need approval before appearing in the public marketplace.
-                  </p>
+                  <div className={`ml-3 text-sm ${
+                    formData.status === 'approved' ? 'text-green-700' :
+                    formData.status === 'pending_approval' ? 'text-yellow-700' :
+                    'text-blue-700'
+                  }`}>
+                    {formData.status === 'draft' && (
+                      <p>Your product will be saved as <span className="font-semibold">draft</span>. You can edit it anytime and submit for approval when ready.</p>
+                    )}
+                    {formData.status === 'pending_approval' && (
+                      <p>Your product will be submitted for <span className="font-semibold">approval</span>. An approver will review it before it appears in the marketplace.</p>
+                    )}
+                    {formData.status === 'approved' && (
+                      <p>Your product will be <span className="font-semibold">immediately published</span> to the public marketplace.</p>
+                    )}
+                  </div>
                 </div>
               </div>
 

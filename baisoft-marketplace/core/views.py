@@ -6,7 +6,7 @@ from django.shortcuts import get_object_or_404
 
 from core.models import Product, User, Business
 from core.serializers import ProductSerializer, UserSerializer, UserManagementSerializer, BusinessSerializer
-from core.permissions import CanApproveProduct, CanManageProduct, IsBusinessAdmin
+from core.permissions import CanApproveProduct, CanManageProduct, CanViewProducts, IsBusinessAdmin
 
 
 class PublicProductsListView(generics.ListAPIView):
@@ -31,18 +31,19 @@ class PublicProductsListView(generics.ListAPIView):
     ordering = ['-created_at']
     
     def get_queryset(self):
-        """Return only approved products."""
-        return Product.objects.filter(status='approved')
+        """Return only approved and non-deleted products."""
+        return Product.objects.filter(status='approved', is_deleted=False)
 
 
 class InternalProductsListCreateView(generics.ListCreateAPIView):
     """
     Authenticated endpoint for managing products within a business.
-    - GET: List all products in user's business
+    - GET: List all products in user's business (admin, editor, approver)
     - POST: Create new product (requires admin or editor role)
     
     Product Rules:
-    - Only authorized users (admin/editor) can create products
+    - Admin, Editor, and Approver can view all products
+    - Only Admin and Editor can create products
     - Products start in 'draft' status
     - Products belong to user's business
     
@@ -56,25 +57,33 @@ class InternalProductsListCreateView(generics.ListCreateAPIView):
     """
     
     serializer_class = ProductSerializer
-    permission_classes = [permissions.IsAuthenticated, CanManageProduct]
+    permission_classes = [permissions.IsAuthenticated, CanViewProducts]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['name', 'description']
     ordering_fields = ['created_at', 'price', 'name', 'status']
     ordering = ['-created_at']
     
     def get_queryset(self):
-        """Return only products belonging to the current user's business."""
-        return Product.objects.filter(business=self.request.user.business)
+        """Return only products belonging to the current user's business (excluding soft-deleted)."""
+        return Product.objects.filter(business=self.request.user.business, is_deleted=False)
     
     def perform_create(self, serializer):
         """Create product and assign to current user's business."""
         if not self.request.user.business:
             raise PermissionError("You must be assigned to a business to create products.")
         
+        # Get status from request, default to draft
+        status = self.request.data.get('status', 'draft')
+        
+        # Editors can only set draft or pending_approval
+        if self.request.user.role == 'editor':
+            if status not in ['draft', 'pending_approval']:
+                status = 'draft'
+        
         serializer.save(
             created_by=self.request.user,
             business=self.request.user.business,
-            status='draft'  # New products always start as draft
+            status=status
         )
     
     def create(self, request, *args, **kwargs):
@@ -150,18 +159,29 @@ class ProductUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
             )
     
     def perform_update(self, serializer):
-        """Update product while maintaining authorization rules."""
-        # Editors cannot change product status
+        """Update product while maintaining authorization rules and status transition validation."""
+        # Get the status from validated data
+        new_status = serializer.validated_data.get('status')
+        instance = self.get_object()
+        
+        # Validate status transition if status is being changed
+        if new_status and new_status != instance.status:
+            if not instance.can_transition_to(new_status, self.request.user):
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied(
+                    f"You cannot change product status from {instance.status} to {new_status}."
+                )
+        
+        # Editors can only set draft or pending_approval status
         if self.request.user.role == 'editor':
-            if 'status' in serializer.validated_data:
-                # Remove status from update if editor tried to change it
-                serializer.save()
-                return
+            if new_status and new_status not in ['draft', 'pending_approval']:
+                # Remove status from update if editor tried to set it to approved
+                serializer.validated_data.pop('status', None)
         
         serializer.save()
     
     def destroy(self, request, *args, **kwargs):
-        """Delete product with authorization check."""
+        """Soft delete product with authorization check."""
         instance = self.get_object()
         
         # Only admins or the creator can delete
@@ -171,7 +191,13 @@ class ProductUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        return super().destroy(request, *args, **kwargs)
+        # Perform soft delete instead of hard delete
+        instance.soft_delete(request.user)
+        
+        return Response(
+            {'detail': 'Product deleted successfully.'},
+            status=status.HTTP_204_NO_CONTENT
+        )
 
 
 class ApproveProductAPIView(APIView):
