@@ -1,5 +1,26 @@
 from rest_framework import serializers
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from core.models import User, Product, Business
+
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """Custom JWT serializer to include user role and business info in token."""
+    
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        
+        # Add custom claims
+        token['role'] = user.role
+        token['user_id'] = user.id
+        token['username'] = user.username
+        token['email'] = user.email
+        
+        if user.business:
+            token['business_id'] = user.business.id
+            token['business_name'] = user.business.name
+        
+        return token
 
 
 class BusinessSerializer(serializers.ModelSerializer):

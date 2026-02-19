@@ -1,3 +1,31 @@
+import { NextPage, NextPageContext } from 'next';
+import { useRouter } from 'next/router';
+import { ComponentType, useEffect } from 'react';
+
+// Token payload type
+type TokenData = {
+  user_id?: number;
+  business_id?: number;
+  role?: string;
+  exp: number;
+  [key: string]: any;
+};
+
+// Type for components with getInitialProps
+type WithInitialProps<IP = any> = {
+  getInitialProps?: (ctx: NextPageContext) => Promise<IP>;
+};
+
+// Type for the wrapped component props
+type WithAuthProps = {
+  [key: string]: any;
+};
+
+// Type for the wrapped component
+type WrappedComponentType<P = {}, IP = {}> = ComponentType<P> & {
+  getInitialProps?: (ctx: NextPageContext) => Promise<IP>;
+};
+
 // Save JWT token to localStorage
 export const saveToken = (token: string): boolean => {
   if (typeof window !== 'undefined') {
@@ -23,15 +51,6 @@ export const getToken = (): string | null => {
     }
   }
   return null;
-};
-
-// Token payload type
-type TokenData = {
-  user_id?: number;
-  business_id?: number;
-  role?: string;
-  exp: number;
-  [key: string]: any;
 };
 
 // Get token data (payload) without verification
@@ -84,6 +103,11 @@ export const getUserBusinessId = (): number | null => {
   return tokenData?.business_id || null;
 };
 
+// Get full user info from token
+export const getUserInfo = (): TokenData | null => {
+  return getTokenData();
+};
+
 // Logout user by removing token
 export const logout = (): boolean => {
   if (typeof window !== 'undefined') {
@@ -101,21 +125,25 @@ export const logout = (): boolean => {
   return false;
 };
 
-// Higher-order component type for withAuth
-type GetInitialProps = (ctx: any) => Promise<any>;
-
-type WithAuthComponent = {
-  getInitialProps?: GetInitialProps;
-} & React.ComponentType<any>;
-
 // Higher-order component for protecting routes
-export const withAuth = (WrappedComponent: WithAuthComponent) => {
-  const Wrapper: WithAuthComponent = (props) => {
-    // This will be handled by getServerSideProps
+export const withAuth = <P extends object = {}, IP = {}>(
+  WrappedComponent: WrappedComponentType<P, IP>
+): NextPage<P & WithAuthProps, IP> & WithInitialProps<IP> => {
+  const Wrapper: NextPage<P & WithAuthProps, IP> & WithInitialProps<IP> = (props) => {
+    const router = useRouter();
+    
+    // Client-side check
+    useEffect(() => {
+      const isAuthenticated = isLoggedIn();
+      if (!isAuthenticated) {
+        router.push('/login');
+      }
+    }, [router]);
+
     return <WrappedComponent {...props} />;
   };
 
-  Wrapper.getInitialProps = async (ctx: any) => {
+  Wrapper.getInitialProps = async (ctx: NextPageContext): Promise<IP> => {
     // On server, check the token in cookies
     if (ctx.req) {
       // Server-side check would go here
@@ -124,40 +152,56 @@ export const withAuth = (WrappedComponent: WithAuthComponent) => {
 
     // If no token or invalid token, redirect to login
     const isAuthenticated = isLoggedIn();
-    if (!isAuthenticated && ctx.res) {
-      ctx.res.writeHead(302, { Location: '/login' });
-      ctx.res.end();
-      return {};
+    if (!isAuthenticated) {
+      if (ctx.res) {
+        // Server-side redirect
+        ctx.res.writeHead(302, { Location: '/login' });
+        ctx.res.end();
+      } else {
+        // Client-side redirect
+        window.location.href = '/login';
+      }
+      return {} as unknown as IP;
     }
 
-    // If the wrapped component has getInitialProps, call it
-    let componentProps = {};
+    // Call getInitialProps of the wrapped component if it exists
+    let componentProps = {} as IP;
     if (WrappedComponent.getInitialProps) {
       componentProps = await WrappedComponent.getInitialProps(ctx);
     }
 
-    return { ...componentProps };
+    return componentProps;
   };
 
   return Wrapper;
 };
 
 // Redirect to login if not authenticated
-export const requireAuth = (context: any) => {
+export const requireAuth = (context: NextPageContext) => {
   const isServer = typeof window === 'undefined';
   
-  if (isServer) {
-    // Server-side check would go here
-    const { res } = context;
-    res.writeHead(302, { Location: '/login' });
-    res.end();
-    return { props: {} };
-  } else {
-    // Client-side check
-    if (!isLoggedIn()) {
-      window.location.href = '/login';
-      return { props: {} };
-    }
-    return { props: {} };
+  if (isServer && context.res) {
+    // Server-side redirect
+    context.res.writeHead(302, { Location: '/login' });
+    context.res.end();
+  } else if (!isServer && !isLoggedIn()) {
+    // Client-side redirect
+    window.location.href = '/login';
   }
+  
+  return { props: {} };
+};
+
+// Export all auth functions
+export default {
+  saveToken,
+  getToken,
+  isLoggedIn,
+  getUserRole,
+  getUserId,
+  getUserBusinessId,
+  getUserInfo,
+  logout,
+  withAuth,
+  requireAuth
 };

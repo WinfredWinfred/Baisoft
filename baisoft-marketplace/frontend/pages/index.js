@@ -4,135 +4,178 @@ import { apiService } from '../utils/api';
 
 export default function Marketplace() {
   const [products, setProducts] = useState([]);
+  const [filteredProducts, setFilteredProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const response = await apiService.get('/products/public/');
-        setProducts(response.data);
-      } catch (err) {
-        setError('Failed to load products. Please try again later.');
-        console.error('Error fetching products:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchProducts();
   }, []);
 
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setFilteredProducts(products);
+    } else {
+      const query = searchQuery.toLowerCase();
+      const filtered = products.filter(product => 
+        product.name.toLowerCase().includes(query) ||
+        product.description.toLowerCase().includes(query)
+      );
+      setFilteredProducts(filtered);
+    }
+  }, [searchQuery, products]);
+
+  const fetchProducts = async () => {
+    try {
+      const response = await apiService.get('/products/public/');
+      const data = response.data.results || response.data;
+      const productsArray = Array.isArray(data) ? data : [];
+      setProducts(productsArray);
+      setFilteredProducts(productsArray);
+    } catch (err) {
+      setError('Failed to load products');
+      console.error('Error fetching products:', err);
+      setProducts([]);
+      setFilteredProducts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500 mb-4"></div>
-        <p className="text-gray-600">Loading products...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-900 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading products...</p>
+        </div>
       </div>
     );
   }
 
-  if (error) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-4">
-        <div className="bg-red-50 border-l-4 border-red-400 p-4 w-full max-w-2xl">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+  const currentYear = new Date().getFullYear();
+
+  return (
+    <div className="min-h-screen bg-white">
+      {/* Header */}
+      <div className="bg-blue-900 text-white shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="text-center mb-6">
+            <h1 className="text-4xl font-bold">Marketplace</h1>
+            <p className="mt-2 text-blue-200">Discover quality products from trusted businesses</p>
+          </div>
+          
+          {/* Search Bar */}
+          <div className="max-w-2xl mx-auto">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search products..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full px-5 py-3 pl-12 text-gray-900 bg-white rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <svg 
+                className="absolute left-4 top-3.5 h-5 w-5 text-gray-400" 
+                fill="none" 
+                viewBox="0 0 24 24" 
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-800">Error loading products</h3>
-              <div className="mt-2 text-sm text-red-700">
-                <p>{error}</p>
-              </div>
-              <div className="mt-4">
-                <button
-                  onClick={() => window.location.reload()}
-                  className="rounded-md bg-red-50 px-2 py-1.5 text-sm font-medium text-red-800 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-2 focus:ring-offset-red-50"
-                >
-                  Try again
-                </button>
-              </div>
-            </div>
+          </div>
+
+          <div className="mt-4 text-center">
+            <span className="inline-flex items-center px-4 py-1.5 rounded-full text-sm font-medium bg-blue-800 text-white">
+              {filteredProducts.length} {filteredProducts.length === 1 ? 'Product' : 'Products'}
+              {searchQuery && ` found for "${searchQuery}"`}
+            </span>
           </div>
         </div>
       </div>
-    );
-  }
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-extrabold text-gray-900 sm:text-5xl sm:tracking-tight lg:text-6xl">
-            Baisoft Marketplace
-          </h1>
-          <p className="mt-3 max-w-2xl mx-auto text-xl text-gray-500 sm:mt-4">
-            Discover amazing products from our marketplace
-          </p>
-        </div>
-
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
-            <span className="block sm:inline">{error}</span>
+          <div className="mb-8 bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="flex">
+              <svg className="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+              <p className="ml-3 text-sm text-red-700">{error}</p>
+            </div>
           </div>
         )}
 
-        {products.length === 0 ? (
-          <div className="text-center py-12">
-            <svg
-              className="mx-auto h-12 w-12 text-gray-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              aria-hidden="true"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
-              />
+        {filteredProducts.length === 0 ? (
+          <div className="text-center py-16">
+            <svg className="mx-auto h-16 w-16 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
             </svg>
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No products</h3>
-            <p className="mt-1 text-sm text-gray-500">There are currently no products available.</p>
+            <h3 className="mt-4 text-lg font-medium text-gray-900">
+              {searchQuery ? 'No products found' : 'No products available'}
+            </h3>
+            <p className="mt-2 text-sm text-gray-500">
+              {searchQuery ? 'Try adjusting your search terms.' : 'Check back soon for new products.'}
+            </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-y-10 gap-x-6 sm:grid-cols-2 lg:grid-cols-3 xl:gap-x-8">
-            {products.map((product) => (
-              <div key={product.id} className="group relative bg-white p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200">
-                <div className="aspect-w-1 aspect-h-1 w-full overflow-hidden rounded-md group-hover:opacity-75 lg:aspect-none lg:h-64">
-                  <img
-                    src={product.image || 'https://via.placeholder.com/300x200?text=No+Image'}
-                    alt={product.name}
-                    className="h-full w-full object-cover object-center lg:h-full lg:w-full"
-                  />
-                </div>
-                <div className="mt-4">
-                  <div>
-                    <h3 className="text-lg font-medium text-gray-900">
-                      <Link href={`/products/${product.id}`}>
-                        <span aria-hidden="true" className="absolute inset-0" />
+          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
+            {filteredProducts.map((product) => (
+              <div 
+                key={product.id} 
+                className="group bg-white rounded-xl shadow-md hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-200"
+              >
+                <div className="p-6">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <h3 className="text-xl font-semibold text-gray-900 group-hover:text-blue-900 transition-colors">
                         {product.name}
-                      </Link>
-                    </h3>
-                    <p className="mt-1 text-sm text-gray-500">
-                      {product.business?.name || 'No business'}
-                    </p>
+                      </h3>
+                      {product.business?.name && (
+                        <p className="mt-1 text-xs text-gray-500 uppercase tracking-wide font-medium">
+                          {product.business.name}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <p className="mt-2 text-sm text-gray-600 line-clamp-3">
+                  
+                  <p className="text-sm text-gray-600 leading-relaxed mb-4 line-clamp-3">
                     {product.description}
                   </p>
-                  <p className="mt-2 text-lg font-medium text-indigo-600">
-                    ${product.price.toFixed(2)}
-                  </p>
+                  
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+                    <div>
+                      <p className="text-2xl font-bold text-blue-900">
+                        ${parseFloat(product.price || 0).toFixed(2)}
+                      </p>
+                    </div>
+                    <Link
+                      href={`/products/${product.id}`}
+                      className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-900 rounded-lg hover:bg-blue-800 transition-colors"
+                    >
+                      View Details
+                      <svg className="ml-2 w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </Link>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
         )}
+      </div>
+
+      {/* Footer */}
+      <div className="bg-gray-900 text-white border-t border-gray-800 mt-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <p className="text-center text-sm text-gray-400">
+            © {currentYear} Baisoft Marketplace. All products are verified and approved.
+          </p>
+        </div>
       </div>
     </div>
   );

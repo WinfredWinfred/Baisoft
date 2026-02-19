@@ -159,6 +159,7 @@ CORS_ALLOWED_ORIGINS = config(
 )
 
 CORS_ALLOW_ALL_ORIGINS = config('CORS_ALLOW_ALL_ORIGINS', default=not DEBUG, cast=bool)
+CORS_ALLOW_CREDENTIALS = True
 
 # Custom User Model
 AUTH_USER_MODEL = 'core.User'
