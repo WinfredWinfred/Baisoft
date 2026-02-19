@@ -1,4 +1,4 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
+import axios, { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
 
 // Define the base URL from environment variables or use a default
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
@@ -14,12 +14,11 @@ const api: AxiosInstance = axios.create({
 
 // Request interceptor to add auth token
 api.interceptors.request.use(
-  (config: AxiosRequestConfig) => {
+  (config: InternalAxiosRequestConfig) => {
     // Only run this in the browser
     if (typeof window !== 'undefined') {
       const token = localStorage.getItem('token');
-      if (token) {
-        config.headers = config.headers || {};
+      if (token && config.headers) {
         config.headers.Authorization = `Bearer ${token}`;
       }
     }
@@ -62,19 +61,19 @@ api.interceptors.response.use(
 
 // Helper functions for common HTTP methods
 const apiService = {
-  get: <T>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> => 
+  get: <T>(url: string, config?: InternalAxiosRequestConfig): Promise<AxiosResponse<T>> => 
     api.get<T>(url, config),
   
-  post: <T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> => 
+  post: <T>(url: string, data?: any, config?: InternalAxiosRequestConfig): Promise<AxiosResponse<T>> => 
     api.post<T>(url, data, config),
   
-  put: <T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> => 
+  put: <T>(url: string, data?: any, config?: InternalAxiosRequestConfig): Promise<AxiosResponse<T>> => 
     api.put<T>(url, data, config),
   
-  delete: <T>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> => 
+  delete: <T>(url: string, config?: InternalAxiosRequestConfig): Promise<AxiosResponse<T>> => 
     api.delete<T>(url, config),
   
-  patch: <T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> => 
+  patch: <T>(url: string, data?: any, config?: InternalAxiosRequestConfig): Promise<AxiosResponse<T>> => 
     api.patch<T>(url, data, config),
 };
 
