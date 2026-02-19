@@ -38,36 +38,40 @@ class BusinessSerializer(serializers.ModelSerializer):
         return obj.users.count()
 
 
-class UserSerializer(serializers.ModelSerializer):
-    """Serializer for User model (read-only)."""
-    
-    business = BusinessSerializer(read_only=True)
-    business_id = serializers.PrimaryKeyRelatedField(
-        queryset=Business.objects.all(),
-        write_only=True,
-        required=False,
-        source='business'
-    )
+class SimpleUserSerializer(serializers.ModelSerializer):
+    """Simple user serializer without nested business."""
     
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'role', 'business', 'business_id', 'is_active', 'date_joined']
+        fields = ['id', 'username', 'email', 'role']
+        read_only_fields = ['id']
+
+
+class UserSerializer(serializers.ModelSerializer):
+    """Full user serializer with business."""
+    
+    business_name = serializers.CharField(source='business.name', read_only=True)
+    
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email', 'role', 'business_name', 'is_active', 'date_joined']
         read_only_fields = ['id', 'date_joined']
 
 
 class UserManagementSerializer(serializers.ModelSerializer):
-    """Serializer for User management (create/update)."""
+    """Serializer for User management."""
+    
+    business_name = serializers.CharField(source='business.name', read_only=True)
     
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'password', 'role', 'is_active']
+        fields = ['id', 'username', 'email', 'password', 'role', 'is_active', 'business_name']
         extra_kwargs = {
             'password': {'write_only': True, 'required': False},
             'id': {'read_only': True},
         }
     
     def create(self, validated_data):
-        """Create a new user with encrypted password."""
         password = validated_data.pop('password', None)
         user = User(**validated_data)
         
@@ -80,7 +84,6 @@ class UserManagementSerializer(serializers.ModelSerializer):
         return user
     
     def update(self, instance, validated_data):
-        """Update user with optional password change."""
         password = validated_data.pop('password', None)
         
         for attr, value in validated_data.items():
@@ -94,52 +97,66 @@ class UserManagementSerializer(serializers.ModelSerializer):
 
 
 class ProductSerializer(serializers.ModelSerializer):
-    """Serializer for Product model with read-only created_by and audit fields."""
+    """Product serializer with audit fields."""
     
-    created_by = UserSerializer(read_only=True)
-    business = BusinessSerializer(read_only=True)
-    approved_by = UserSerializer(read_only=True)
-    deleted_by = UserSerializer(read_only=True)
+    created_by_username = serializers.SerializerMethodField()
+    business_name = serializers.SerializerMethodField()
+    approved_by_username = serializers.SerializerMethodField()
     image_url = serializers.SerializerMethodField()
     
     class Meta:
         model = Product
         fields = [
-            'id',
-            'name',
-            'description',
-            'price',
-            'image',
-            'image_url',
-            'status',
-            'business',
-            'created_by',
-            'approved_by',
-            'approved_at',
-            'is_deleted',
-            'deleted_by',
-            'deleted_at',
-            'created_at',
-            'updated_at'
+            'id', 'name', 'description', 'price', 'image', 'image_url', 'status',
+            'business_name', 'created_by_username', 'approved_by_username', 'approved_at',
+            'created_at', 'updated_at'
         ]
         read_only_fields = [
-            'id', 
-            'created_by', 
-            'business', 
-            'approved_by', 
-            'approved_at',
-            'is_deleted',
-            'deleted_by',
-            'deleted_at',
-            'created_at', 
-            'updated_at'
+            'id', 'created_by_username', 'business_name', 'approved_by_username', 'approved_at',
+            'created_at', 'updated_at'
         ]
     
+    def get_created_by_username(self, obj):
+        try:
+            return obj.created_by.username if obj.created_by else 'Unknown'
+        except:
+            return 'Unknown'
+    
+    def get_business_name(self, obj):
+        try:
+            return obj.business.name if obj.business else 'No Business'
+        except:
+            return 'No Business'
+    
+    def get_approved_by_username(self, obj):
+        try:
+            return obj.approved_by.username if obj.approved_by else None
+        except:
+            return None
+    
     def get_image_url(self, obj):
-        """Get full URL for product image."""
-        if obj.image:
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.image.url)
-            return obj.image.url
+        try:
+            if obj.image:
+                request = self.context.get('request')
+                if request:
+                    return request.build_absolute_uri(obj.image.url)
+                return obj.image.url
+        except:
+            pass
         return None
+    
+    def validate_image(self, value):
+        if value:
+            if value.size > 5 * 1024 * 1024:
+                raise serializers.ValidationError('Image file size cannot exceed 5MB.')
+            
+            allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+            if hasattr(value, 'content_type') and value.content_type not in allowed_types:
+                raise serializers.ValidationError('Invalid image type. Allowed: JPEG, PNG, GIF, WebP.')
+        
+        return value
+    
+    def validate_price(self, value):
+        if value <= 0:
+            raise serializers.ValidationError('Price must be greater than zero.')
+        return value

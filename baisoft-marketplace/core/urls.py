@@ -23,4 +23,7 @@ urlpatterns = [
     
     # Approve product endpoint
     path('products/<int:pk>/approve/', views.ApproveProductAPIView.as_view(), name='approve-product'),
+    
+    # Bulk approve products endpoint
+    path('products/bulk-approve/', views.BulkApproveProductsAPIView.as_view(), name='bulk-approve-products'),
 ]

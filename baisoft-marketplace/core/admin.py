@@ -84,21 +84,30 @@ class ProductAdmin(admin.ModelAdmin):
         "price",
         "status_badge",
         "created_by",
+        "approved_by",
+        "is_deleted",
         "created_at",
     )
-    list_filter = ("status", "business")
+    list_filter = ("status", "business", "is_deleted")
     search_fields = ("name", "description")
-    readonly_fields = ("created_at", "updated_at", "created_by")
+    readonly_fields = ("created_at", "updated_at", "approved_by", "approved_at", "deleted_by", "deleted_at", "created_by")
 
-    fieldsets = (
-        ("Product Info", {"fields": ("name", "description", "price")}),
-        ("Business", {"fields": ("business",)}),
-        ("Workflow", {"fields": ("status",)}),
-        ("Metadata", {"fields": ("created_by", "created_at", "updated_at")}),
-    )
+    def get_fieldsets(self, request, obj=None):
+        if obj:
+            return (
+                ("Product Info", {"fields": ("name", "description", "price", "image")}),
+                ("Business & Creator", {"fields": ("business", "created_by")}),
+                ("Workflow", {"fields": ("status",)}),
+                ("Audit Trail", {"fields": ("created_at", "updated_at", "approved_by", "approved_at")}),
+                ("Soft Delete", {"fields": ("is_deleted", "deleted_by", "deleted_at")}),
+            )
+        else:
+            return (
+                ("Product Info", {"fields": ("name", "description", "price", "image")}),
+                ("Business", {"fields": ("business",)}),
+            )
 
     def status_badge(self, obj):
-        """Show product status with color."""
         colors = {
             "draft": "gray",
             "pending_approval": "orange",
@@ -113,12 +122,9 @@ class ProductAdmin(admin.ModelAdmin):
     status_badge.short_description = "Status"
 
     def save_model(self, request, obj, form, change):
-        """
-        Automatically assign created_by and business when product is created.
-        """
         if not change:
             obj.created_by = request.user
-            if request.user.business:
+            if not obj.business and request.user.business:
                 obj.business = request.user.business
 
         super().save_model(request, obj, form, change)

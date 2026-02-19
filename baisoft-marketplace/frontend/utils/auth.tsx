@@ -22,9 +22,6 @@ type WrappedComponentType<P = {}, IP = {}> = ComponentType<P> & {
   getInitialProps?: (ctx: NextPageContext) => Promise<IP>;
 };
 
-/**
- * Save JWT token to browser localStorage
- */
 export const saveToken = (token: string): boolean => {
   if (typeof window !== 'undefined') {
     try {
@@ -38,9 +35,6 @@ export const saveToken = (token: string): boolean => {
   return false;
 };
 
-/**
- * Retrieve JWT token from localStorage
- */
 export const getToken = (): string | null => {
   if (typeof window !== 'undefined') {
     try {
@@ -53,10 +47,6 @@ export const getToken = (): string | null => {
   return null;
 };
 
-/**
- * Decode JWT token payload without verification
- * Returns the decoded payload or null if invalid
- */
 export const getTokenData = (): TokenData | null => {
   const token = getToken();
   if (!token) return null;
@@ -73,9 +63,6 @@ export const getTokenData = (): TokenData | null => {
   }
 };
 
-/**
- * Check if user is authenticated with valid token
- */
 export const isLoggedIn = (): boolean => {
   const token = getToken();
   if (!token) return false;
@@ -87,40 +74,25 @@ export const isLoggedIn = (): boolean => {
   return tokenData.exp > currentTime;
 };
 
-/**
- * Get user role from token
- */
 export const getUserRole = (): string | null => {
   const tokenData = getTokenData();
   return tokenData?.role || null;
 };
 
-/**
- * Get user ID from token
- */
 export const getUserId = (): number | null => {
   const tokenData = getTokenData();
   return tokenData?.user_id || null;
 };
 
-/**
- * Get user's business ID from token
- */
 export const getUserBusinessId = (): number | null => {
   const tokenData = getTokenData();
   return tokenData?.business_id || null;
 };
 
-/**
- * Get full user info from token
- */
 export const getUserInfo = (): TokenData | null => {
   return getTokenData();
 };
 
-/**
- * Logout user by removing token and redirecting to login
- */
 export const logout = (): boolean => {
   if (typeof window !== 'undefined') {
     try {
@@ -135,10 +107,6 @@ export const logout = (): boolean => {
   return false;
 };
 
-/**
- * Higher-order component for protecting routes
- * Redirects to login if user is not authenticated
- */
 export const withAuth = <P extends object = {}, IP = {}>(
   WrappedComponent: WrappedComponentType<P, IP>
 ): NextPage<P & WithAuthProps, IP> & WithInitialProps<IP> => {

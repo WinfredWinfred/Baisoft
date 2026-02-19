@@ -1,14 +1,9 @@
 import { memo } from 'react';
 import Link from 'next/link';
 
-/**
- * Memoized Product Card Component
- * Prevents unnecessary re-renders when parent component updates
- * 
- * @param {Object} product - Product data
- * @param {boolean} showBusiness - Whether to show business name
- */
 const ProductCard = memo(({ product, showBusiness = true }) => {
+  const businessName = product.business_name || product.business?.name;
+  
   return (
     <div 
       className="group bg-white rounded-xl shadow-md hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-200"
@@ -20,9 +15,9 @@ const ProductCard = memo(({ product, showBusiness = true }) => {
             <h3 className="text-xl font-semibold text-gray-900 group-hover:text-blue-900 transition-colors">
               {product.name}
             </h3>
-            {showBusiness && product.business?.name && (
+            {showBusiness && businessName && (
               <p className="mt-1 text-xs text-gray-500 uppercase tracking-wide font-medium">
-                {product.business.name}
+                {businessName}
               </p>
             )}
           </div>
@@ -34,7 +29,7 @@ const ProductCard = memo(({ product, showBusiness = true }) => {
         
         <div className="flex items-center justify-between pt-4 border-t border-gray-200">
           <div>
-            <p className="text-2xl font-bold text-blue-900" aria-label={`Price: $${parseFloat(product.price || 0).toFixed(2)}`}>
+            <p className="text-2xl font-bold text-blue-900" aria-label={`Price: ${parseFloat(product.price || 0).toFixed(2)}`}>
               ${parseFloat(product.price || 0).toFixed(2)}
             </p>
           </div>
