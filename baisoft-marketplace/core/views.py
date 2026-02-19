@@ -215,6 +215,7 @@ class ApproveProductAPIView(APIView):
     
     def post(self, request, pk):
         """Approve a product and make it visible to public."""
+        from django.utils import timezone
         
         # Get product and verify it exists
         try:
@@ -246,11 +247,13 @@ class ApproveProductAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Approve the product
+        # Approve the product with audit trail
         product.status = 'approved'
+        product.approved_by = request.user
+        product.approved_at = timezone.now()
         product.save()
         
-        serializer = ProductSerializer(product)
+        serializer = ProductSerializer(product, context={'request': request})
         return Response(
             {
                 'detail': 'Product approved successfully and is now visible to the public.',
