@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.html import format_html
 
-from .models import Business, User, Product
+from .models import Business, User, Product, ChatConversation, ChatMessage
 
 
 # ===============================
@@ -128,3 +128,30 @@ class ProductAdmin(admin.ModelAdmin):
                 obj.business = request.user.business
 
         super().save_model(request, obj, form, change)
+
+
+
+@admin.register(ChatConversation)
+class ChatConversationAdmin(admin.ModelAdmin):
+    list_display = ('id', 'user', 'session_id', 'message_count', 'created_at', 'updated_at')
+    list_filter = ('created_at', 'user')
+    search_fields = ('session_id', 'user__username')
+    readonly_fields = ('created_at', 'updated_at')
+    
+    def message_count(self, obj):
+        return obj.messages.count()
+    
+    message_count.short_description = 'Messages'
+
+
+@admin.register(ChatMessage)
+class ChatMessageAdmin(admin.ModelAdmin):
+    list_display = ('id', 'conversation', 'user_message_preview', 'created_at')
+    list_filter = ('created_at',)
+    search_fields = ('user_message', 'ai_response')
+    readonly_fields = ('created_at',)
+    
+    def user_message_preview(self, obj):
+        return obj.user_message[:50] + '...' if len(obj.user_message) > 50 else obj.user_message
+    
+    user_message_preview.short_description = 'User Message'

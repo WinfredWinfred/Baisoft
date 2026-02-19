@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from core.models import User, Product, Business
+from core.models import User, Product, Business, ChatConversation, ChatMessage
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -160,3 +160,19 @@ class ProductSerializer(serializers.ModelSerializer):
         if value <= 0:
             raise serializers.ValidationError('Price must be greater than zero.')
         return value
+
+
+class ChatMessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ChatMessage
+        fields = ['id', 'user_message', 'ai_response', 'created_at']
+        read_only_fields = ['id', 'ai_response', 'created_at']
+
+
+class ChatConversationSerializer(serializers.ModelSerializer):
+    messages = ChatMessageSerializer(many=True, read_only=True)
+    
+    class Meta:
+        model = ChatConversation
+        fields = ['id', 'session_id', 'messages', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']

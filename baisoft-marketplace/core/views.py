@@ -418,3 +418,84 @@ class RoleBasedThrottle:
     
     class ViewerThrottle(UserRateThrottle):
         rate = '500/hour'
+
+
+
+class ChatbotAPIView(APIView):
+    """Endpoint for chatbot interactions."""
+    
+    permission_classes = [permissions.AllowAny]
+    
+    def post(self, request):
+        from core.chatbot_service import ChatbotService
+        from core.models import ChatConversation, ChatMessage
+        import uuid
+        
+        user_message = request.data.get('message', '').strip()
+        session_id = request.data.get('session_id')
+        
+        if not user_message:
+            return Response(
+                {'detail': 'Message is required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Generate or use existing session ID
+        if not session_id:
+            session_id = str(uuid.uuid4())
+        
+        # Get or create conversation
+        conversation, created = ChatConversation.objects.get_or_create(
+            session_id=session_id,
+            defaults={'user': request.user if request.user.is_authenticated else None}
+        )
+        
+        # Generate AI response
+        chatbot = ChatbotService()
+        ai_response = chatbot.generate_response(user_message)
+        
+        # Save message
+        chat_message = ChatMessage.objects.create(
+            conversation=conversation,
+            user_message=user_message,
+            ai_response=ai_response
+        )
+        
+        return Response({
+            'session_id': session_id,
+            'message': user_message,
+            'response': ai_response,
+            'timestamp': chat_message.created_at
+        }, status=status.HTTP_200_OK)
+
+
+class ChatHistoryAPIView(APIView):
+    """Endpoint to retrieve chat history."""
+    
+    permission_classes = [permissions.AllowAny]
+    
+    def get(self, request):
+        from core.serializers import ChatMessageSerializer
+        
+        session_id = request.query_params.get('session_id')
+        
+        if not session_id:
+            return Response(
+                {'detail': 'session_id is required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            conversation = ChatConversation.objects.get(session_id=session_id)
+            messages = conversation.messages.all()
+            serializer = ChatMessageSerializer(messages, many=True)
+            
+            return Response({
+                'session_id': session_id,
+                'messages': serializer.data
+            }, status=status.HTTP_200_OK)
+        except ChatConversation.DoesNotExist:
+            return Response({
+                'session_id': session_id,
+                'messages': []
+            }, status=status.HTTP_200_OK)

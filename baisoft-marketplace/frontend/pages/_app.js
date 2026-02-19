@@ -2,6 +2,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { useState } from 'react';
 import { getUserInfo, logout } from '../utils/auth';
+import Chatbot from '../components/Chatbot';
 import '../styles/globals.css';
 
 function MyApp({ Component, pageProps }) {
@@ -11,14 +12,22 @@ function MyApp({ Component, pageProps }) {
   const isPublic = router.pathname === '/' || router.pathname.startsWith('/products/');
 
   if (isLogin || isPublic) {
-    return <Component {...pageProps} />;
+    return (
+      <>
+        <Component {...pageProps} />
+        <Chatbot />
+      </>
+    );
   }
 
   if (isDashboard) {
     return (
-      <DashboardLayout>
-        <Component {...pageProps} />
-      </DashboardLayout>
+      <>
+        <DashboardLayout>
+          <Component {...pageProps} />
+        </DashboardLayout>
+        <Chatbot />
+      </>
     );
   }
 

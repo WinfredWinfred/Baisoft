@@ -26,4 +26,8 @@ urlpatterns = [
     
     # Bulk approve products endpoint
     path('products/bulk-approve/', views.BulkApproveProductsAPIView.as_view(), name='bulk-approve-products'),
+    
+    # Chatbot endpoints
+    path('chatbot/', views.ChatbotAPIView.as_view(), name='chatbot'),
+    path('chatbot/history/', views.ChatHistoryAPIView.as_view(), name='chatbot-history'),
 ]
